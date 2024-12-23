@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Christmas Running Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-color: #cce7ff;
+            overflow: hidden;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 1px 1px 2px black;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="score">Score: 0</div>
+</div>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let obstacleSpeed = 5;
+const initialObstacleFrequency = 1500;
+let obstacleFrequency = initialObstacleFrequency;
+const accelerationThreshold = 10;
+const accelerationFactor = 1.1;
+
+let obstacleInterval;
+const scoreDisplay = document.getElementById('score');
+
+// Player object styled as Santa
+const player = {
+    x: 50,
+    y: canvas.height - 150,
+    width: 50,
+    height: 50,
+    color: 'red',
+    dy: 0,
+    gravity: 1,
+    isJumping: false
+};
+
+// Obstacle array
+const obstacles = [];
+
+// Snowflake array for falling snow
+const snowflakes = [];
+
+function getRandomY() {
+    return canvas.height - 150; // Obstacles on the same level as the player
+}
+
+function createObstacle() {
+    const obstacle = {
+        x: canvas.width,
+        y: getRandomY(),
+        width: 50,
+        height: 50,
+        color: 'green'
+    };
+    obstacles.push(obstacle);
+}
+
+function createSnowflake() {
+    const snowflake = {
+        x: Math.random() * canvas.width,
+        y: -10,
+        radius: Math.random() * 3 + 2,
+        speed: Math.random() * 2 + 1
+    };
+    snowflakes.push(snowflake);
+}
+
+function updatePlayer() {
+    if (player.isJumping) {
+        player.dy += player.gravity;
+        player.y += player.dy;
+
+        if (player.y >= canvas.height - 150) {
+            player.y = canvas.height - 150;
+            player.dy = 0;
+            player.isJumping = false;
+        }
+    }
+}
+
+function updateObstacles() {
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].x -= obstacleSpeed;
+
+        if (obstacles[i].x + obstacles[i].width < 0) {
+            obstacles.splice(i, 1);
+            score++;
+            scoreDisplay.textContent = `Score: ${score}`;
+
+            if (score % accelerationThreshold === 0) {
+                accelerateGame();
+            }
+        }
+    }
+}
+
+function updateSnowflakes() {
+    for (let i = snowflakes.length - 1; i >= 0; i--) {
+        snowflakes[i].y += snowflakes[i].speed;
+
+        if (snowflakes[i].y > canvas.height) {
+            snowflakes.splice(i, 1);
+        }
+    }
+}
+
+function checkCollision() {
+    for (const obstacle of obstacles) {
+        if (
+            player.x < obstacle.x + obstacle.width &&
+            player.x + player.width > obstacle.x &&
+            player.y < obstacle.y + obstacle.height &&
+            player.y + player.height > obstacle.y
+        ) {
+            gameOver();
+        }
+    }
+}
+
+function drawPlayer() {
+    ctx.fillStyle = 'red';
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.fillStyle = 'white';
+    ctx.fillRect(player.x + 10, player.y, player.width - 20, 10); // Hat stripe
+}
+
+function drawObstacles() {
+    for (const obstacle of obstacles) {
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        ctx.fillStyle = 'red';
+        ctx.fillRect(obstacle.x + 10, obstacle.y + 10, 30, 30); // Ribbon
+    }
+}
+
+function drawSnowflakes() {
+    ctx.fillStyle = 'white';
+    for (const snowflake of snowflakes) {
+        ctx.beginPath();
+        ctx.arc(snowflake.x, snowflake.y, snowflake.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawBackground() {
+    ctx.fillStyle = '#80cfff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawBackground();
+    updateSnowflakes();
+    updatePlayer();
+    updateObstacles();
+    checkCollision();
+
+    drawSnowflakes();
+    drawPlayer();
+    drawObstacles();
+
+    requestAnimationFrame(gameLoop);
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !player.isJumping) {
+        player.isJumping = true;
+        player.dy = -20;
+    }
+});
+
+function accelerateGame() {
+    obstacleSpeed *= accelerationFactor;
+    obstacleFrequency = Math.max(500, obstacleFrequency / accelerationFactor);
+
+    clearInterval(obstacleInterval);
+    obstacleInterval = setInterval(createObstacle, obstacleFrequency);
+}
+
+function gameOver() {
+    alert(`Game Over! Your score: ${score}`);
+    restartGame();
+}
+
+function restartGame() {
+    score = 0;
+    scoreDisplay.textContent = `Score: ${score}`;
+    obstacles.length = 0;
+    player.y = canvas.height - 150;
+    player.dy = 0;
+    player.isJumping = false;
+
+    obstacleSpeed = 5;
+    obstacleFrequency = initialObstacleFrequency;
+
+    clearInterval(obstacleInterval);
+    obstacleInterval = setInterval(createObstacle, obstacleFrequency);
+
+    gameLoop();
+}
+
+// Start the game
+obstacleInterval = setInterval(createObstacle, obstacleFrequency);
+setInterval(createSnowflake, 50); // Generate snowflakes every 50ms
+gameLoop();
+</script>
+</body>
+</html>
